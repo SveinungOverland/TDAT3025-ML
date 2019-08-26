@@ -3,7 +3,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import pandas as pd
 from tensorflow import keras
-from tensorflow.keras import layers
+# from tensorflow.keras import backend as K
 
 print(tf.__version__)
 
@@ -12,97 +12,80 @@ column_names = ["day", "circumference"]
 
 dataset = pd.read_csv(day_circumference_file, names=column_names, skiprows=1)
 
-train_dataset = dataset.sample(frac=0.8, random_state=0)
-test_dataset = dataset.drop(train_dataset.index)
-
 print(dataset)
 
 print(dataset.isna().sum())
 
 
+class LinearRegressionModel:
+    def __init__(self):
+        # Model input
+        self.x = tf.placeholder(tf.float32)
+        self.y = tf.placeholder(tf.float32)
+
+        # Model variables
+        self.W = tf.Variable([[0.0]])
+        self.b = tf.Variable([[0.0]])
+
+        # # Predictor
+        # self.f = 20 * tf.nn.sigmoid(tf.matmul(self.x, self.W) + self.b) + 31 
+
+        # Mean Squared Error
+        self.loss = tf.reduce_mean(tf.square(self.f(self.x) - self.y))
+
+    def f(self, x):
+        return 20 * tf.sigmoid(tf.matmul(x, self.W) + self.b) + 31
 
 
-def build_model():
-    model = keras.Sequential([
-        layers.Dense(10, activation=tf.nn.relu, input_shape=[1]),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(10, activation=tf.nn.relu),
-        layers.Dense(1)
-    ])
-    optimizer = tf.keras.optimizers.RMSprop(0.00001)
-    model.compile(loss="mean_squared_error",
-                  optimizer=optimizer,
-                  metrics=["mean_absolute_error", "mean_squared_error"])
-    return model
+class Visualizer:
+    def __init__(self, W, b):
+        self.W = W
+        self.b = b
 
-model = build_model()
+    # Predictor
+    def predict(self, x):
+        return 20 * (1 / (1 + np.exp(-(x * np.mat(self.W) + np.mat(self.b))))) + 31
 
-print(model.summary())
 
-class PrintDot(keras.callbacks.Callback):
-    def on_epoch_end(self, epoch, logs):
-        if epoch % 1000 == 0: print(epoch, logs['loss'])
-        
+model = LinearRegressionModel()
 
-EPOCHS = 6000
+# Training: adjust the model so that its loss is minimized
+minimize_operation = tf.train.GradientDescentOptimizer(0.0000000001).minimize(model.loss)
 
-history = model.fit(dataset[["day"]],
-                    dataset[["circumference"]],
-                    epochs=EPOCHS,
-                    validation_split=0.2,
-                    verbose=0,
-                    callbacks=[PrintDot()])
+# Create session object for running TensorFlow operations
+session = tf.Session()
 
-hist = pd.DataFrame(history.history)
+# Initialize tf.Variable objects
+session.run(tf.global_variables_initializer())
 
-hist["epoch"] = history.epoch
-print()
-print(hist.tail())
+day = np.asmatrix(dataset[["day"]].to_numpy())
+circumference = np.asmatrix(dataset[["circumference"]].to_numpy())
 
-def plot_history(history):
-  hist = pd.DataFrame(history.history)
-  hist['epoch'] = history.epoch
-  
-  plt.figure()
-  plt.xlabel('Epoch')
-  plt.ylabel('Mean Abs Error [MPG]')
-  plt.plot(hist['epoch'], hist['mean_absolute_error'],
-           label='Train Error')
-  plt.plot(hist['epoch'], hist['val_mean_absolute_error'],
-           label = 'Val Error')
-  plt.legend()
-  
-  plt.figure()
-  plt.xlabel('Epoch')
-  plt.ylabel('Mean Square Error [$MPG^2$]')
-  plt.plot(hist['epoch'], hist['mean_squared_error'],
-           label='Train Error')
-  plt.plot(hist['epoch'], hist['val_mean_squared_error'],
-           label = 'Val Error')
-  plt.legend()
-  plt.show()
+for epoch in range(6_000):
+    session.run(minimize_operation, { model.x: day, model.y: circumference })
+    if epoch % 1000 == 0:
+        loss = session.run([model.loss], { model.x: day, model.y: circumference })
+        print(epoch, loss)
 
-plot_history(history)
+
+# Evaluate training accuracy
+W, b, loss = session.run([model.W, model.b, model.loss], { model.x: day, model.y: circumference })
+print("W = %s, b = %s, loss = %s" % (W, b, loss))
+
+
+session.close()
+
+
+x = np.linspace(day.min(), day.max(), 100).reshape(-1, 1)
+y = Visualizer(np.mat(W), np.mat(b)).predict(x)
 
 fig, ax = plt.subplots()
-ax.plot(dataset[["day"]], dataset[["circumference"]], 'o')
+
+ax.plot(day, circumference, 'o')
 ax.set_xlabel("day")
 ax.set_ylabel("circumference")
 
-x = np.linspace(dataset[["day"]].min(), dataset[["day"]].max(), 100)
-y = model.predict(x).flatten()
-
 ax.plot(x, y)
 
-
+ax.legend()
 plt.show()
