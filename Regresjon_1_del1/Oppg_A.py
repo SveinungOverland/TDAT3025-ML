@@ -72,7 +72,7 @@ session.run(tf.global_variables_initializer())
 length = np.asmatrix(dataset[["length"]].to_numpy())
 weight = np.asmatrix(dataset[["weight"]].to_numpy())
 
-for epoch in range(360000):
+for epoch in range(100000):
     session.run(minimize_operation, { model.x: length, model.y: weight })
     if epoch % 1000 == 0:
         loss = session.run([model.loss], { model.x: length, model.y: weight })

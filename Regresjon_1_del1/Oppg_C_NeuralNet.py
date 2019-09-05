@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from tensorflow import keras
 from tensorflow.keras import layers
+import datetime
 
 print(tf.__version__)
 
@@ -56,12 +57,16 @@ class PrintDot(keras.callbacks.Callback):
 
 EPOCHS = 6000
 
+log_dir="logs"
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
+
 history = model.fit(dataset[["day"]],
                     dataset[["circumference"]],
                     epochs=EPOCHS,
                     validation_split=0.2,
                     verbose=0,
-                    callbacks=[PrintDot()])
+                    callbacks=[PrintDot(), tensorboard_callback])
 
 hist = pd.DataFrame(history.history)
 
